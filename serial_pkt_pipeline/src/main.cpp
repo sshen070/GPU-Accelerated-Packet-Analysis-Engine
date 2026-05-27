@@ -1,7 +1,9 @@
 #include <iostream>
 #include <algorithm>
+#include <arpa/inet.h>
 
 #include "packet.h"
+#include "analytics.h"
 
 int main(int argc, char* argv[])
 {
@@ -14,6 +16,7 @@ int main(int argc, char* argv[])
 
     std::cout << "Loaded packets: " << packets.size() << "\n\n";
 
+    /*
     size_t limit = std::min((size_t)10, packets.size());
 
     for (size_t i = 0; i < limit; i++)
@@ -29,6 +32,19 @@ int main(int argc, char* argv[])
             << "  Protocol: " << (int)p.protocol << "\n"
             << "  Length: " << p.packet_len << "\n\n";
     }
+    */
+    
+    PacketFilter filter;
+
+    // filter.filter_tcp = true;
+    // filter.dst_port = 443;
+
+    filter.src_ip = inet_addr("71.126.222.64");
+    filter.dst_ip = inet_addr("254.229.252.232");
+
+    std::vector<PacketInfo> filtered = filter_packets(packets, filter);
+
+    std::cout << "\nFiltered packets: " << filtered.size() << "\n";
 
     return 0;
 }
