@@ -46,5 +46,20 @@ int main(int argc, char* argv[])
 
     std::cout << "\nFiltered packets: " << filtered.size() << "\n";
 
+
+    // Analytics
+    print_protocol_counts(filtered);
+
+    print_top_source_ips(filtered, 10);
+
+    // Example duration estimate
+    double duration_seconds = 60.0;
+
+    print_bandwidth_stats(
+        filtered,
+        duration_seconds
+    );
+
+
     return 0;
 }
