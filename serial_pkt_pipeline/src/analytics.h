@@ -17,8 +17,12 @@ struct PacketFilter {
 
     uint32_t src_ip = 0;
     uint32_t dst_ip = 0;
+    bool use_src_ip = false;
+    bool use_dst_ip = false;
+
 
     uint32_t min_len = 0;
+    bool min_len_enabled = false; 
 };
 
 // Filtering
@@ -26,7 +30,7 @@ bool matches(const PacketInfo& pkt, const PacketFilter& filter);
 
 std::vector<PacketInfo> filter_packets(const std::vector<PacketInfo>& packets, const PacketFilter& filter);
 
-// Analytics ~ Not yet implemented
+// Analytics Engine
 void print_protocol_counts(const std::vector<PacketInfo>& packets);
 
 void print_top_source_ips(const std::vector<PacketInfo>& packets, size_t top_n = 10);
