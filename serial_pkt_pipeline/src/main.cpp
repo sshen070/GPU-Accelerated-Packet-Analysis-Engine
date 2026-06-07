@@ -4,7 +4,6 @@
 
 #include "packet.h"
 #include "analytics.h"
-#include "gpu_processing.h"
 
 int main(int argc, char* argv[])
 {
@@ -61,13 +60,13 @@ int main(int argc, char* argv[])
         duration_seconds
     );
 
-    std::cout << "\n=== SOA Conversion ===\n";
-    PacketArrays soa = convert_SOA(filtered);
+    // std::cout << "\n=== SOA Conversion ===\n";
+    // PacketArrays soa = convert_SOA(filtered);
 
-    size_t limit = std::min<size_t>(5, filtered.size());
-    for (size_t i = 0; i < limit; i++) {
-        std::cout << i + 1 << ". " << ip_to_string(soa.src_ip[i]) <<  "\n";
-    }
+    // size_t limit = std::min<size_t>(5, filtered.size());
+    // for (size_t i = 0; i < limit; i++) {
+    //     std::cout << i + 1 << ". " << ip_to_string(soa.src_ip[i]) <<  "\n";
+    // }
 
 
     return 0;
