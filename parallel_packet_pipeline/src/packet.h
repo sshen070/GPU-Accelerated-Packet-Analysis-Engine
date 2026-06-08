@@ -7,13 +7,14 @@
 
 // Keep track of pkt details
 struct PacketInfo {
-    uint32_t src_ip;
-    uint32_t dst_ip;
+    uint8_t protocol;
 
     uint16_t src_port;
     uint16_t dst_port;
 
-    uint8_t protocol;
+    uint32_t src_ip;
+    uint32_t dst_ip;
+
     uint32_t packet_len;
 };
 
