@@ -1,5 +1,4 @@
-#ifndef FILTER_PREPROCESSING_H
-#define FILTER_PREPROCESSING_H
+#pragma once
 
 #include "packet.h"
 
@@ -55,5 +54,3 @@ struct PacketArrays {
 
 // SOA conversion (pkt vector --> SOA object)
 PacketArrays convert_SOA(const std::vector<PacketInfo>& packets);
-
-#endif
