@@ -1,6 +1,5 @@
 #include "packet.h"
 
-#include <pcap.h>
 #include <iostream>
 #include <arpa/inet.h>
 
@@ -45,14 +44,27 @@ struct UDPHeader {
     uint16_t dst_port;
 };
 
-std::vector<PacketInfo> load_packets(const std::string& filename) {
+pcap_t* open_file(const std::string &filename) {
     char errbuf[PCAP_ERRBUF_SIZE];
     
     // Track reading position & internal buffers
     pcap_t* handle = pcap_open_offline(filename.c_str(), errbuf);
-
     if (!handle) {
         std::cerr << "PCAP open error: " << errbuf << "\n";
+        return {};
+    }
+
+    return handle;
+}
+
+
+// Return tuple containing vector of batch_size PacketInfo objects
+// If vector is not filled --> return False flag
+std::vector<PacketInfo> read_batch(pcap_t* handle, uint32_t batch_size) {
+    char errbuf[PCAP_ERRBUF_SIZE];
+
+    if (!handle) {
+        std::cerr << "Handle invalid: " << errbuf << "\n";
         return {};
     }
 
@@ -62,7 +74,7 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
     std::vector<PacketInfo> packets;
     
     // Reduce realloc overhead ~ significant vector resize overhead otherwise
-    packets.reserve(1 << 16);
+    packets.reserve(batch_size);
 
     // Non-structured pkt data ~ pure bytes
     const u_char* packet;
@@ -75,8 +87,7 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
     size_t skipped = 0;
 
     // Parse through each of the pkts (three layers)
-    while (pcap_next_ex(handle, &header, &packet) >= 0)
-    {
+    while (pcap_next_ex(handle, &header, &packet) >= 0 && total < batch_size) {
         total++;
 
         // Data Link Header (no header info needed ~ set parsing pointer to the beginning of IP Layer)
@@ -93,15 +104,13 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
             offset = 14;
 
             // Skip VLAN tags 
-            while (eth_type == 0x8100 || eth_type == 0x88A8)
-            {
+            while (eth_type == 0x8100 || eth_type == 0x88A8) {
                 eth_type = ntohs(*(uint16_t*)(packet + offset));
                 offset += 4;
             }
             
             // If not IPv4 ~ skip
-            if (eth_type != 0x0800)
-            {
+            if (eth_type != 0x0800) {
                 skipped++;
                 continue;
             }
@@ -110,28 +119,24 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
         }
 
         // Linux SLL
-        else if (link_type == DLT_LINUX_SLL)
-        {
+        else if (link_type == DLT_LINUX_SLL) {
             // Linux cooked capture
             offset = 16;
             ip_layer = packet + offset;
         }
 
         // Raw IP
-        else if (link_type == DLT_RAW)
-        {
+        else if (link_type == DLT_RAW) {
             ip_layer = packet;
         }
 
-        else
-        {
+        else {
             skipped++;
             continue;
         }
 
         // IP Layer ~ check if location of IP header + offset is actually within full header
-        if (header -> caplen < (uint32_t)(offset + sizeof(IPHeader)))
-        {
+        if (header -> caplen < (uint32_t)(offset + sizeof(IPHeader))) {
             skipped++;
             continue;
         }
@@ -157,8 +162,7 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
         // Find total length of ip_header to parse to transport header
         uint32_t ip_header_len = ip -> ihl * 4;
 
-        if (header->caplen < offset + ip_header_len)
-        {
+        if (header->caplen < offset + ip_header_len) {
             skipped++;
             continue;
         }
@@ -166,10 +170,8 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
         const u_char* transport_layer = ip_layer + ip_header_len;
 
         // TCP
-        if (pkt.protocol == 6)
-        {
-            if (header->caplen >= offset + ip_header_len + sizeof(TCPHeader))
-            {
+        if (pkt.protocol == 6) {
+            if (header->caplen >= offset + ip_header_len + sizeof(TCPHeader)) {
                 const TCPHeader* tcp = (TCPHeader*)transport_layer;
                 pkt.src_port = ntohs(tcp -> src_port);
                 pkt.dst_port = ntohs(tcp -> dst_port);
@@ -177,10 +179,8 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
         }
 
         // UDP
-        else if (pkt.protocol == 17)
-        {
-            if (header->caplen >= offset + ip_header_len + sizeof(UDPHeader))
-            {
+        else if (pkt.protocol == 17) {
+            if (header->caplen >= offset + ip_header_len + sizeof(UDPHeader)) {
                 const UDPHeader* udp = (UDPHeader*)transport_layer;
                 pkt.src_port = ntohs(udp -> src_port);
                 pkt.dst_port = ntohs(udp -> dst_port);
@@ -189,9 +189,6 @@ std::vector<PacketInfo> load_packets(const std::string& filename) {
 
         packets.push_back(pkt);
     }
-
-    pcap_close(handle);
-
 
     std::cout << "\n[PCAP STATS]\n";
     std::cout << "Total packets: " << total << "\n";
