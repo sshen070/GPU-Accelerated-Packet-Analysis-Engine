@@ -2,4 +2,24 @@
 
 #include "filter_preprocessing.h"
 
-uint32_t process_gpu_batch(const PacketArrays& h_batch, uint32_t count);
+struct GPUPipelineSlot{
+    cudaStream_t stream;
+    cudaEvent_t finished;
+
+    DevicePacketArrays d_batch;
+
+    uint8_t* d_mask;
+
+    std::vector<uint8_t> h_mask;
+
+    uint32_t capacity;
+};
+
+
+void initialize_pipeline(GPUPipelineSlot& pipeline, uint32_t capacity);
+
+void launch_batch(GPUPipelineSlot& batch, const PacketArrays& h_batch, uint32_t count, const PacketFilter& filter);
+
+uint32_t collect_results(GPUPipelineSlot& batch, uint32_t count);
+
+void destroy_pipeline(GPUPipelineSlot& pipeline);
