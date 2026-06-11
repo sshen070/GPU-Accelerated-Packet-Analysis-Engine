@@ -51,8 +51,8 @@ __global__ void filter_kernel(DevicePacketArrays batch, PacketFilter filter, uin
     mask[idx] = match;
 }
 
-void filter_batch(DevicePacketArrays batch, PacketFilter filter, uint8_t* mask, uint32_t N) {
+void filter_batch(DevicePacketArrays batch, PacketFilter filter, uint8_t* mask, uint32_t N, cudaStream_t stream) {
 
     int blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    filter_kernel<<<blocks, BLOCK_SIZE>>>(batch, filter, mask);
+    filter_kernel<<<blocks, BLOCK_SIZE, 0, stream>>>(batch, filter, mask);
 }
