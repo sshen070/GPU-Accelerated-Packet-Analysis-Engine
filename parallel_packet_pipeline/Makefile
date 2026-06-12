@@ -10,7 +10,7 @@ all:
 	$(NVCC) $(NVCCFLAGS) $(SRC) -o $(OUT) $(LDFLAGS)
 
 run:
-	./$(OUT) ../datasets/caida_ddos_trace.pcap
+	./$(OUT) ../datasets/large_caida_ddos_trace.pcap
 
 clean:
 	rm -f $(OUT)
