@@ -3,14 +3,6 @@
 #include <iostream>
 #include <arpa/inet.h>
 
-// Converts IP address (binary) --> String
-std::string ip_to_string(uint32_t ip)
-{
-    struct in_addr addr;
-    addr.s_addr = ip;
-    return std::string(inet_ntoa(addr));
-}
-
 // Tracks dst & src MAC addr + protocol type (Ipv4 vs IPv6 header)
 struct EthHeader {
     uint8_t dst[6];
@@ -44,6 +36,14 @@ struct UDPHeader {
     uint16_t dst_port;
 };
 
+// Converts IP address (binary) --> String
+std::string ip_to_string(uint32_t ip){
+    struct in_addr addr;
+    addr.s_addr = ip;
+    return std::string(inet_ntoa(addr));
+}
+
+
 pcap_t* open_file(const std::string &filename) {
     char errbuf[PCAP_ERRBUF_SIZE];
     
@@ -59,23 +59,28 @@ pcap_t* open_file(const std::string &filename) {
 
 
 // Return tuple containing vector of batch_size PacketInfo objects
-// If vector is not filled --> return False flag
-std::vector<PacketInfo> read_batch(pcap_t* handle, uint32_t batch_size) {
-    char errbuf[PCAP_ERRBUF_SIZE];
+PacketArrays read_batch(pcap_t* handle, uint32_t batch_size) {
+
+    // Store pkt fields in SOA format
+    PacketArrays batch;
+
+    // Reduce realloc overhead ~ significant vector resize overhead otherwise
+    batch.protocol.reserve(batch_size);
+    batch.src_ip.reserve(batch_size);
+    batch.dst_ip.reserve(batch_size);
+    batch.src_port.reserve(batch_size);
+    batch.dst_port.reserve(batch_size);
+    batch.packet_len.reserve(batch_size);
+
 
     if (!handle) {
-        std::cerr << "Handle invalid: " << errbuf << "\n";
+        std::cerr << "Handle invalid\n";
         return {};
     }
 
     // Pkt store format ~ Ethernet, Linux SLL, Raw
     int link_type = pcap_datalink(handle);
-
-    std::vector<PacketInfo> packets;
     
-    // Reduce realloc overhead ~ significant vector resize overhead otherwise
-    packets.reserve(batch_size);
-
     // Non-structured pkt data ~ pure bytes
     const u_char* packet;
 
@@ -147,17 +152,7 @@ std::vector<PacketInfo> read_batch(pcap_t* handle, uint32_t batch_size) {
             // ip->protocol	read bytes at (ip + offset_of(protocol))
         const IPHeader* ip = (IPHeader*)ip_layer;
 
-        PacketInfo pkt{};
-        pkt.src_ip = ip -> src_ip;
-        pkt.dst_ip = ip -> dst_ip;
-        pkt.protocol = ip -> protocol;
-        pkt.packet_len = header -> len;
-
         ipv4++;
-
-        // Src & dst port info not located in IP header ~ temporarily zero until updated by TCP header info
-        pkt.src_port = 0;
-        pkt.dst_port = 0;
 
         // Find total length of ip_header to parse to transport header
         uint32_t ip_header_len = ip -> ihl * 4;
@@ -167,27 +162,40 @@ std::vector<PacketInfo> read_batch(pcap_t* handle, uint32_t batch_size) {
             continue;
         }
 
+        // Src & dst port info not located in IP header ~ temporarily zero until updated by TCP header info
+        uint32_t src_port = 0;
+        uint32_t dst_port = 0;
+
         const u_char* transport_layer = ip_layer + ip_header_len;
 
         // TCP
-        if (pkt.protocol == 6) {
+        if (ip -> protocol == 6) {
             if (header->caplen >= offset + ip_header_len + sizeof(TCPHeader)) {
                 const TCPHeader* tcp = (TCPHeader*)transport_layer;
-                pkt.src_port = ntohs(tcp -> src_port);
-                pkt.dst_port = ntohs(tcp -> dst_port);
+                src_port = ntohs(tcp->src_port);
+                dst_port = ntohs(tcp->dst_port);            
             }
         }
 
         // UDP
-        else if (pkt.protocol == 17) {
+        else if (ip -> protocol == 17) {
             if (header->caplen >= offset + ip_header_len + sizeof(UDPHeader)) {
                 const UDPHeader* udp = (UDPHeader*)transport_layer;
-                pkt.src_port = ntohs(udp -> src_port);
-                pkt.dst_port = ntohs(udp -> dst_port);
+                src_port = ntohs(udp->src_port);
+                dst_port = ntohs(udp->dst_port);            
             }
         }
 
-        packets.push_back(pkt);
+        // IP layer fields
+        batch.src_ip.push_back(ip->src_ip);
+        batch.dst_ip.push_back(ip->dst_ip);
+        batch.protocol.push_back(ip->protocol);
+        batch.packet_len.push_back(header->len);
+
+        // Transport layer fields
+        batch.src_port.push_back(src_port);
+        batch.src_port.push_back(dst_port);
+
     }
 
     // std::cout << "\n[PCAP STATS]\n";
@@ -195,6 +203,7 @@ std::vector<PacketInfo> read_batch(pcap_t* handle, uint32_t batch_size) {
     // std::cout << "IPv4 packets:  " << ipv4 << "\n";
     // std::cout << "Skipped:       " << skipped << "\n";
     // std::cout << "Parsed:        " << packets.size() << "\n\n";
-
-    return packets;
+    
+    batch.count = batch.src_ip.size();
+    return batch;
 }
