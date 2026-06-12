@@ -1,5 +1,7 @@
 #include <iostream>
-#include <algorithm>
+#include <vector>
+#include <chrono>
+#include <iomanip>
 #include <arpa/inet.h>
 
 #include "packet.h"
@@ -12,62 +14,59 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::vector<PacketInfo> packets = load_packets(argv[1]);
+    std::string filename = argv[1];
 
-    std::cout << "Loaded packets: " << packets.size() << "\n\n";
-
-    /*
-    size_t limit = std::min((size_t)10, packets.size());
-
-    for (size_t i = 0; i < limit; i++)
-    {
-        const PacketInfo& p = packets[i];
-
-        std::cout
-            << "Packet " << i << "\n"
-            << "  Src IP: " << ip_to_string(p.src_ip) << "\n"
-            << "  Dst IP: " << ip_to_string(p.dst_ip) << "\n"
-            << "  Src Port: " << p.src_port << "\n"
-            << "  Dst Port: " << p.dst_port << "\n"
-            << "  Protocol: " << (int)p.protocol << "\n"
-            << "  Length: " << p.packet_len << "\n\n";
-    }
-    */
     
-    PacketFilter filter;
+    auto start = std::chrono::high_resolution_clock::now();
 
-    // filter.filter_tcp = true;
-    // filter.dst_port = 443;
+    std::vector<PacketInfo> packets = load_packets(filename);
+
+    std::cout << "Loaded packets: " << packets.size() << "\n";
+
+    // Create filter
+    PacketFilter filter{};
 
     filter.src_ip = inet_addr("71.126.222.64");
     filter.dst_ip = inet_addr("254.229.252.232");
 
+    filter.use_src_ip = true;
+    filter.use_dst_ip = true;
+
+    // Return filtered packets
     std::vector<PacketInfo> filtered = filter_packets(packets, filter);
 
-    std::cout << "\nFiltered packets: " << filtered.size() << "\n";
+    // print_protocol_counts(filtered);
+    // print_top_source_ips(filtered, 10);
 
+    // double duration_seconds = 60.0;
+    // print_bandwidth_stats(filtered, duration_seconds);
 
-    // Analytics
-    print_protocol_counts(filtered);
+    auto end = std::chrono::high_resolution_clock::now();
 
-    print_top_source_ips(filtered, 10);
+    double total_ms = std::chrono::duration<double, std::milli>(end - start).count();
 
-    // Example duration estimate
-    double duration_seconds = 60.0;
+    std::cout << "\n========================================\n";
+    std::cout << " Serial Pipeline Summary\n";
+    std::cout << "========================================\n";
 
-    print_bandwidth_stats(
-        filtered,
-        duration_seconds
-    );
+    std::cout << std::left
+              << std::setw(25) << "Total Packets"
+              << packets.size()
+              << "\n";
 
-    // std::cout << "\n=== SOA Conversion ===\n";
-    // PacketArrays soa = convert_SOA(filtered);
+    std::cout << std::left
+              << std::setw(25) << "Matched Packets"
+              << filtered.size()
+              << "\n";
 
-    // size_t limit = std::min<size_t>(5, filtered.size());
-    // for (size_t i = 0; i < limit; i++) {
-    //     std::cout << i + 1 << ". " << ip_to_string(soa.src_ip[i]) <<  "\n";
-    // }
+    std::cout << std::left
+              << std::setw(25) << "Pipeline Execution Time"
+              << std::fixed
+              << std::setprecision(3)
+              << total_ms
+              << " ms\n";
 
+    std::cout << "========================================\n";
 
     return 0;
 }
