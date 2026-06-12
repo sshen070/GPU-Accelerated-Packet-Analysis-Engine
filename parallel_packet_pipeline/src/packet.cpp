@@ -59,23 +59,11 @@ pcap_t* open_file(const std::string &filename) {
 
 
 // Return tuple containing vector of batch_size PacketInfo objects
-PacketArrays read_batch(pcap_t* handle, uint32_t batch_size) {
-
-    // Store pkt fields in SOA format
-    PacketArrays batch;
-
-    // Reduce realloc overhead ~ significant vector resize overhead otherwise
-    batch.protocol.reserve(batch_size);
-    batch.src_ip.reserve(batch_size);
-    batch.dst_ip.reserve(batch_size);
-    batch.src_port.reserve(batch_size);
-    batch.dst_port.reserve(batch_size);
-    batch.packet_len.reserve(batch_size);
-
+void read_batch(pcap_t* handle, PacketArrays& batch, uint32_t batch_size) {
 
     if (!handle) {
         std::cerr << "Handle invalid\n";
-        return {};
+        return;
     }
 
     // Pkt store format ~ Ethernet, Linux SLL, Raw
@@ -186,16 +174,17 @@ PacketArrays read_batch(pcap_t* handle, uint32_t batch_size) {
             }
         }
 
-        // IP layer fields
-        batch.src_ip.push_back(ip->src_ip);
-        batch.dst_ip.push_back(ip->dst_ip);
-        batch.protocol.push_back(ip->protocol);
-        batch.packet_len.push_back(header->len);
+        batch.src_ip[batch.count] = ip->src_ip;
+        batch.dst_ip[batch.count] = ip->dst_ip;
 
-        // Transport layer fields
-        batch.src_port.push_back(src_port);
-        batch.src_port.push_back(dst_port);
+        batch.protocol[batch.count] = ip->protocol;
 
+        batch.packet_len[batch.count] = header->len;
+
+        batch.src_port[batch.count] = src_port;
+        batch.dst_port[batch.count] = dst_port;
+
+        batch.count += 1;
     }
 
     // std::cout << "\n[PCAP STATS]\n";
@@ -203,7 +192,4 @@ PacketArrays read_batch(pcap_t* handle, uint32_t batch_size) {
     // std::cout << "IPv4 packets:  " << ipv4 << "\n";
     // std::cout << "Skipped:       " << skipped << "\n";
     // std::cout << "Parsed:        " << packets.size() << "\n\n";
-    
-    batch.count = batch.src_ip.size();
-    return batch;
 }

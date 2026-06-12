@@ -37,6 +37,6 @@ struct PacketArrays {
 pcap_t* open_file(const std::string &filename);
 
 // Reads pcap file & loads pkts into PacketInfo objects
-PacketArrays read_batch(pcap_t* handle, uint32_t batch_size);
+void read_batch(pcap_t* handle, PacketArrays& batch, uint32_t batch_size);
 
 std::string ip_to_string(uint32_t ip);

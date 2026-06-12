@@ -55,8 +55,9 @@ void launch_batch(GPUPipelineSlot& batch, const PacketArrays& h_batch, uint32_t 
 }
 
 uint32_t collect_results(GPUPipelineSlot& batch, uint32_t count) {
-    cudaEventSynchronize(batch.finished);
-
+    if(cudaEventQuery(batch.finished) == cudaSuccess) {
+        cudaEventSynchronize(batch.finished);
+    } 
     // Calculate total GPU time of batch
     float ms = 0.0f;
     cudaEventElapsedTime(&ms, batch.start, batch.finished);
