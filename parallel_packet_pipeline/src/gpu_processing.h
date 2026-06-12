@@ -4,17 +4,16 @@
 
 struct GPUPipelineSlot{
     cudaStream_t stream;
-    cudaEvent_t finished;
+
+    cudaEvent_t start, finished;
 
     DevicePacketArrays d_batch;
 
-    uint8_t* d_mask;
-
-    std::vector<uint8_t> h_mask;
-
+    uint8_t *h_mask, *d_mask;
     uint32_t capacity;
-};
 
+    float batch_time_ms;
+};
 
 void initialize_pipeline(GPUPipelineSlot& pipeline, uint32_t capacity);
 
