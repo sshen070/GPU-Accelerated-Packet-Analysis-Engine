@@ -32,8 +32,15 @@ int main(int argc, char* argv[])
     filter.use_src_ip = true;
     filter.use_dst_ip = true;
 
+    auto filter_start = std::chrono::high_resolution_clock::now();
+
     // Return filtered packets
     std::vector<PacketInfo> filtered = filter_packets(packets, filter);
+
+    auto filter_end = std::chrono::high_resolution_clock::now();
+
+    double filter_ms = std::chrono::duration<double, std::milli>(
+        filter_end - filter_start).count();
 
     // print_protocol_counts(filtered);
     // print_top_source_ips(filtered, 10);
@@ -58,6 +65,13 @@ int main(int argc, char* argv[])
               << std::setw(25) << "Matched Packets"
               << filtered.size()
               << "\n";
+
+    std::cout << std::left
+            << std::setw(25) << "Filter Time"
+            << std::fixed
+            << std::setprecision(3)
+            << filter_ms
+            << " ms\n";
 
     std::cout << std::left
               << std::setw(25) << "Pipeline Execution Time"
