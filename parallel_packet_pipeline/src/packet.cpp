@@ -190,11 +190,11 @@ std::vector<PacketInfo> read_batch(pcap_t* handle, uint32_t batch_size) {
         packets.push_back(pkt);
     }
 
-    std::cout << "\n[PCAP STATS]\n";
-    std::cout << "Total packets: " << total << "\n";
-    std::cout << "IPv4 packets:  " << ipv4 << "\n";
-    std::cout << "Skipped:       " << skipped << "\n";
-    std::cout << "Parsed:        " << packets.size() << "\n\n";
+    // std::cout << "\n[PCAP STATS]\n";
+    // std::cout << "Total packets: " << total << "\n";
+    // std::cout << "IPv4 packets:  " << ipv4 << "\n";
+    // std::cout << "Skipped:       " << skipped << "\n";
+    // std::cout << "Parsed:        " << packets.size() << "\n\n";
 
     return packets;
 }
